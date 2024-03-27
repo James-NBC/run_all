@@ -49,7 +49,7 @@ def create_data_info(task, user_info, temp_data_dir):
         dataset_infos = user_info["datasets"]
         dataset_urls = []
         for info in dataset_infos:
-            dataset_urls.append(info['link'])
+            dataset_urls.append(info['url'])
     else:
         dataset_urls = user_info["datasets"]
 
@@ -100,7 +100,7 @@ def run_perceptron(user_info, temp_data_dir):
     dataset_infos = user_info["datasets"]
     class_names = {}
     for info in dataset_infos:
-        dataset_folder_name = os.path.splitext(os.path.basename(info['link']))[0]
+        dataset_folder_name = os.path.splitext(os.path.basename(info['url']))[0]
         class_names[dataset_folder_name] = info['name']
 
     with open(config_path, 'r') as f:
