@@ -45,13 +45,9 @@ def download_and_unzip(urls, temp_data_dir):
     return temp_data_dir
 
 def create_data_info(task, user_info, temp_data_dir):
-    if task == "perceptron":
-        dataset_infos = user_info["datasets"]
-        dataset_urls = []
-        for info in dataset_infos:
-            dataset_urls.append(info['url'])
-    else:
-        dataset_urls = user_info["datasets"]
+    dataset_urls = []
+    for info in user_info["datasets"]:
+        dataset_urls.append(info["url"])
 
     data_dir = download_and_unzip(dataset_urls, temp_data_dir)
     output_dir = "./outputs_" + task
