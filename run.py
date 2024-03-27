@@ -6,6 +6,7 @@ import json
 import requests
 import argparse
 import subprocess
+import zipfile
 
 UPLOAD_MODEL_API = "https://api-dojo.eternalai.org/api/admin/dojo/upload-output?admin_key=eai2024"
 
@@ -13,6 +14,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--json-path", type=str, required=True)
     return parser.parse_args()
+
+def get_file_basename(file):
+    return os.path.splitext(os.path.basename(file))[0]
 
 def download_and_unzip(urls, temp_data_dir):
     """
@@ -44,6 +48,56 @@ def download_and_unzip(urls, temp_data_dir):
     shutil.rmtree(tmp, ignore_errors=True)
     return temp_data_dir
 
+def download_and_unzip_perceptron(urls, temp_data_dir):
+    """
+    Downloads files from a list of URLs and zips them into a single zip file.
+    
+    Args:
+        urls (list): List of URLs of files to download.
+        zip_filename (str): Name of the zip file to create.
+        
+    Returns:
+        str: Path to the created zip file.
+    """
+    tmp = os.path.join('./', "tmp")
+    temp_dir = os.path.join('./', "temp_dir")
+    if not os.path.exists(tmp):
+        os.makedirs(tmp)
+    # Download files
+    downloaded_files = []
+    for url in urls:
+        filename = os.path.basename(url)
+        file_path = os.path.join(tmp, filename)
+        gdown.download(url, file_path, quiet=False)    
+        downloaded_files.append(file_path)
+
+    zip_to_folder = {}
+    # extract all zip from downloaded_files to tempdir
+    for file in downloaded_files:
+        zipf = zipfile.ZipFile(file, "r")
+        folder_name = get_file_basename(file)
+
+        # print(file)
+        # subfiles = [x for x in zipf.namelist()]
+        # print(subfiles)
+
+        subfolders = [x for x in zipf.namelist() if x.endswith('/') and x != "__MACOSX/"]
+        # print(subfolders)
+        if len(subfolders) == 0:
+            subfolder_dir = os.path.join(temp_data_dir, folder_name)
+            os.makedirs(subfolder_dir, exist_ok=True)
+            with zipfile.ZipFile(file, 'r') as zip_ref:
+                zip_ref.extractall(subfolder_dir)
+            zip_to_folder[folder_name] = folder_name
+        else:
+            with zipfile.ZipFile(file, 'r') as zip_ref:
+                zip_ref.extractall(temp_data_dir)
+            zip_to_folder[folder_name] = subfolders[0][:-1]        
+            
+    shutil.rmtree(os.path.join(temp_data_dir, "__MACOSX"), ignore_errors=True)
+    shutil.rmtree(tmp, ignore_errors=True)
+    return temp_data_dir, zip_to_folder
+
 def create_data_info(task, user_info, temp_data_dir):
     dataset_urls = []
     for info in user_info["datasets"]:
@@ -56,6 +110,18 @@ def create_data_info(task, user_info, temp_data_dir):
     output_path = os.path.join(output_dir, user_info["model_id"] +  ".json")
     return data_dir, output_path
 
+def create_data_info_perceptron(task, user_info, temp_data_dir):
+    dataset_urls = []
+    for info in user_info["datasets"]:
+        dataset_urls.append(info["url"])
+
+    data_dir, zip_to_folder = download_and_unzip_perceptron(dataset_urls, temp_data_dir)
+    output_dir = "./outputs_" + task
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    output_path = os.path.join(output_dir, user_info["model_id"] +  ".json")
+    return data_dir, output_path, zip_to_folder
+    
 def run_melody(user_info, temp_data_dir):
     data_dir, output_path = create_data_info("melody", user_info, temp_data_dir)
     script = os.path.join("melody", "train.py")
@@ -91,17 +157,18 @@ def run_shakespeare(user_info, temp_data_dir):
 def run_perceptron(user_info, temp_data_dir):
     script = os.path.join("perceptron", "training_user.py")
     config_path = os.path.join("perceptron", "config.json")
-    data_dir, output_path = create_data_info("perceptron", user_info, temp_data_dir)
+    data_dir, output_path, zip_to_folder = create_data_info_perceptron("perceptron", user_info, temp_data_dir)
 
     dataset_infos = user_info["datasets"]
     class_names = {}
     for info in dataset_infos:
-        dataset_folder_name = os.path.splitext(os.path.basename(info['url']))[0]
-        class_names[dataset_folder_name] = info['name']
+        zip_name = get_file_basename(info['url'])
+        folder_name = zip_to_folder[zip_name]
+        class_names[folder_name] = info['name']
 
     with open(config_path, 'r') as f:
         config = json.load(f)
-    config['class_names'] = class_names    
+    config['class_names'] = class_names
     with open(config_path, 'w') as f:
         json.dump(config, f)
 
