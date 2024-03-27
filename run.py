@@ -41,23 +41,24 @@ def download_and_unzip(urls, temp_data_dir):
     shutil.rmtree(tmp, ignore_errors=True)
     return temp_data_dir
 
-def create_data_info(user_info, temp_data_dir):
-    dataset_urls = user_info["datasets"]
-    data_dir = download_and_unzip(dataset_urls, temp_data_dir)
-    output_path = os.path.join("./", user_info["model_id"] +  ".json")
-    return data_dir, output_path
+def create_data_info(task, user_info, temp_data_dir):
+    if task == "perceptron":
+        dataset_infos = user_info["datasets"]
+        dataset_urls = []
+        for info in dataset_infos:
+            dataset_urls.append(info['link'])
+    else:
+        dataset_urls = user_info["datasets"]
 
-def create_data_info_perceptron(user_info, temp_data_dir):
-    dataset_infos = user_info["datasets"]
-    dataset_urls = []
-    for info in dataset_infos:
-        dataset_urls.append(info['link'])
     data_dir = download_and_unzip(dataset_urls, temp_data_dir)
-    output_path = os.path.join("./", user_info["model_id"] +  ".json")
+    output_dir = "./outputs_" + task
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    output_path = os.path.join(output_dir, user_info["model_id"] +  ".json")
     return data_dir, output_path
 
 def run_melody(user_info, temp_data_dir):
-    data_dir, output_path = create_data_info(user_info, temp_data_dir)
+    data_dir, output_path = create_data_info("melody", user_info, temp_data_dir)
     script = os.path.join("melody", "train.py")
     config_path = os.path.join("shakespeare", "config.json")
     command = (
@@ -74,7 +75,7 @@ def run_melody(user_info, temp_data_dir):
 
 def run_shakespeare(user_info, temp_data_dir):
     script = os.path.join("shakespeare", "rnn_training.py")
-    data_dir, output_path = create_data_info(user_info, temp_data_dir)
+    data_dir, output_path = create_data_info("shakespeare", user_info, temp_data_dir)
     config_path = os.path.join("shakespeare", "config.json")
     command = (
         f"python {script} "
@@ -90,7 +91,7 @@ def run_shakespeare(user_info, temp_data_dir):
 def run_perceptron(user_info, temp_data_dir):
     script = os.path.join("perceptron", "training_user.py")
     config_path = os.path.join("perceptron", "config.json")
-    data_dir, output_path = create_data_info_perceptron(user_info, temp_data_dir)
+    data_dir, output_path = create_data_info("perceptron", user_info, temp_data_dir)
 
     dataset_infos = user_info["datasets"]
     class_names = {}
