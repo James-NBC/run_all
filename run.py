@@ -47,6 +47,15 @@ def create_data_info(user_info, temp_data_dir):
     output_path = os.path.join("./", user_info["model_id"] +  ".json")
     return data_dir, output_path
 
+def create_data_info_perceptron(user_info, temp_data_dir):
+    dataset_infos = user_info["datasets"]
+    dataset_urls = []
+    for info in dataset_infos:
+        dataset_urls.append(info['link'])
+    data_dir = download_and_unzip(dataset_urls, temp_data_dir)
+    output_path = os.path.join("./", user_info["model_id"] +  ".json")
+    return data_dir, output_path
+
 def run_melody(user_info, temp_data_dir):
     data_dir, output_path = create_data_info(user_info, temp_data_dir)
     script = os.path.join("melody", "train.py")
@@ -81,11 +90,24 @@ def run_shakespeare(user_info, temp_data_dir):
 def run_perceptron(user_info, temp_data_dir):
     script = os.path.join("perceptron", "training_user.py")
     config_path = os.path.join("perceptron", "config.json")
-    data_dir, output_path = create_data_info(user_info, temp_data_dir)
+    data_dir, output_path = create_data_info_perceptron(user_info, temp_data_dir)
+
+    dataset_infos = user_info["datasets"]
+    class_names = {}
+    for info in dataset_infos:
+        dataset_folder_name = os.path.splitext(os.path.basename(info['link']))[0]
+        class_names[dataset_folder_name] = info['name']
+
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    config['class_names'] = class_names    
+    with open(config_path, 'w') as f:
+        json.dump(config, f)
+
     command = (
         f"python {script} "
         f"-d {data_dir} "
-        f"-c {config_path}"
+        f"-c {config_path} "
         f"-o {output_path} "
     )   
     result = subprocess.run(
